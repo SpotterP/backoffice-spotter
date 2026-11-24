@@ -80,8 +80,16 @@ export class AuthService {
       return throwError(() => new Error('No hay refresh token'));
     }
 
+    // Aquí el token nuevo sí se guarda: lo van a usar las siguientes peticiones
+    return this.refreshWith(refreshToken).pipe(tap((token) => localStorage.setItem(TOKEN_KEY, token)));
+  }
+
+  /**
+   * POST /auth/refresh con un refresh token concreto, sin tocar el almacenamiento.
+   * Lo usa el logout, que ya ha borrado la sesión local cuando la respuesta llega.
+   */
+  private refreshWith(refreshToken: string): Observable<string> {
     return this.http.post<RefreshResponse>(`${this.baseUrl}/refresh`, { refreshToken }).pipe(
-      tap((response) => localStorage.setItem(TOKEN_KEY, response.token)),
       // map: de la respuesta { token } me quedo solo con el texto del token
       map((response) => response.token),
     );
@@ -91,18 +99,40 @@ export class AuthService {
   logout(): void {
     const token = this.getToken();
 
+    // Los dos tokens se leen AHORA: la sesión local se borra en el acto, aunque la petición
+    // siga en vuelo, y después ya no estarían disponibles para reintentar.
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
     // El interceptor no pone la cabecera en las rutas de /auth, así que va puesta aquí. La API
     // sube la versión de tokens del usuario, con lo que el access token y el refresh token
     // dejan de valer, también en los demás dispositivos donde tuviera la sesión abierta.
     // No espero la respuesta: si falla o no contesta, la sesión local se cierra igual.
     if (token) {
-      this.http
-        .post<void>(`${this.baseUrl}/logout`, {}, { headers: { Authorization: `Bearer ${token}` } })
-        .subscribe({ error: () => undefined });
+      this.postLogout(token).subscribe({
+        error: (error) => {
+          // Si el access token ya había caducado el servidor no ha cerrado nada, y la sesión
+          // seguiría viva hasta que caduque el refresh token. Renovamos y repetimos UNA vez.
+          // Con cualquier otro código (sesión revocada, token inválido) renovar no arregla nada.
+          const expired = error?.error?.code === 'TOKEN_EXPIRED';
+
+          if (expired && refreshToken) {
+            this.refreshWith(refreshToken).subscribe({
+              next: (fresh) => this.postLogout(fresh).subscribe({ error: () => undefined }),
+              // Si la renovación falla tampoco hay nada más que hacer: la sesión local ya no está
+              error: () => undefined,
+            });
+          }
+        },
+      });
     }
 
     this.clearSession();
     this.router.navigate(['/login']);
+  }
+
+  /** POST /auth/logout con un access token concreto: sube la versión de tokens del usuario */
+  private postLogout(token: string): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/logout`, {}, { headers: { Authorization: `Bearer ${token}` } });
   }
 
   /** Borra los tokens y el usuario guardados: la sesión local deja de existir */
