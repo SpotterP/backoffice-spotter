@@ -48,6 +48,14 @@ npm run build
 pasarlos una vez). `npm run build` compila en `dist/`, y `npm run watch` recompila al guardar sin
 levantar el servidor de desarrollo.
 
+### Linter y hook de Git
+
+El linter es ESLint con las reglas de Angular (`eslint.config.js`), y se lanza con `npm run lint` (`ng lint`).
+
+Al hacer `npm install` se activa solo un hook de Git (`.githooks/pre-commit`, lo configura el script `prepare`).
+Antes de cada `git commit` pasa `npm run lint`: si el linter encuentra un error, el commit se cancela y dice qué arreglar.
+Se puede saltar una vez con `git commit --no-verify`, pero lo normal es arreglar el aviso.
+
 ## Pantallas
 
 Todo salvo `/login` y `/register` pide sesión, y las pantallas de gestión piden además rol `ADMIN`.
