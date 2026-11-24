@@ -30,11 +30,15 @@ describe('WorkoutService', () => {
 
   it('createWorkout() posts the exercises as a list of ids', () => {
     service
-      .createWorkout({ name: 'Día de pecho', dayOfWeek: 'MONDAY', exercises: ['e1', 'e2'] })
+      .createWorkout({
+        name: 'Día de pecho',
+        days: ['MONDAY'],
+        exercises: [{ exercise: 'e1', sets: 4, reps: 10 }],
+      })
       .subscribe();
     const req = httpMock.expectOne(url);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body.exercises).toEqual(['e1', 'e2']);
+    expect(req.request.body.exercises).toEqual([{ exercise: 'e1', sets: 4, reps: 10 }]);
     req.flush({ workout: {} });
   });
 
@@ -53,7 +57,9 @@ describe('WorkoutService', () => {
   });
 
   it('updateWorkout() puts the payload to the id url', () => {
-    service.updateWorkout('w1', { name: 'X', dayOfWeek: 'FRIDAY' }).subscribe();
+    service
+      .updateWorkout('w1', { name: 'X', days: ['FRIDAY'], exercises: [] })
+      .subscribe();
     const req = httpMock.expectOne(`${url}/w1`);
     expect(req.request.method).toBe('PUT');
     req.flush({ workout: {} });
