@@ -173,4 +173,78 @@ describe('AuthService', () => {
     httpMock.expectNone(logoutUrl);
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
+
+  it('logout() renews an expired access token and retries the logout once', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    service.login({ email: 'admin@example.com', password: 'seminari7' }).subscribe();
+    httpMock.expectOne(`${environment.apiUrl}/auth/admin/login`).flush(loginResponse);
+
+    service.logout();
+
+    // El access token había caducado: el servidor no cierra nada y responde 401
+    httpMock
+      .expectOne(logoutUrl)
+      .flush(
+        { message: 'El token ha caducado', code: 'TOKEN_EXPIRED' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+
+    const refresh = httpMock.expectOne(`${environment.apiUrl}/auth/refresh`);
+    expect(refresh.request.body.refreshToken).toBe('refresh-1');
+    refresh.flush({ token: 'access-2' });
+
+    // Un solo reintento, ya con el token nuevo
+    const retry = httpMock.expectOne(logoutUrl);
+    expect(retry.request.headers.get('Authorization')).toBe('Bearer access-2');
+    retry.flush(null, { status: 204, statusText: 'No Content' });
+
+    expect(httpMock.match(logoutUrl).length).toBe(0);
+    expect(service.getToken()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('logout() does not retry when the renewal fails', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    service.login({ email: 'admin@example.com', password: 'seminari7' }).subscribe();
+    httpMock.expectOne(`${environment.apiUrl}/auth/admin/login`).flush(loginResponse);
+
+    service.logout();
+
+    httpMock
+      .expectOne(logoutUrl)
+      .flush(
+        { message: 'El token ha caducado', code: 'TOKEN_EXPIRED' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    httpMock
+      .expectOne(`${environment.apiUrl}/auth/refresh`)
+      .flush(
+        { message: 'La sesión ya no es válida', code: 'SESSION_REVOKED' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+
+    // Sin bucle: si la renovación falla no se vuelve a intentar el logout
+    expect(httpMock.match(logoutUrl).length).toBe(0);
+    expect(service.getToken()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('logout() does not renew the token when the API answers another 401', () => {
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    service.login({ email: 'admin@example.com', password: 'seminari7' }).subscribe();
+    httpMock.expectOne(`${environment.apiUrl}/auth/admin/login`).flush(loginResponse);
+
+    service.logout();
+
+    httpMock
+      .expectOne(logoutUrl)
+      .flush(
+        { message: 'La sesión ya no es válida', code: 'SESSION_REVOKED' },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+
+    // Renovar no arregla una sesión revocada
+    httpMock.expectNone(`${environment.apiUrl}/auth/refresh`);
+    expect(service.getToken()).toBeNull();
+  });
 });
