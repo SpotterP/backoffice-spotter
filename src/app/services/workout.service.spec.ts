@@ -20,10 +20,11 @@ describe('WorkoutService', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('getWorkouts() sends the day filter and the sort', () => {
-    service.getWorkouts({ dayOfWeek: 'MONDAY', sort: 'dayOfWeek', order: 'asc' }).subscribe();
-    const req = httpMock.expectOne(`${url}?dayOfWeek=MONDAY&sort=dayOfWeek&order=asc`);
+  it('getWorkouts() sends the day and owner filters and the sort', () => {
+    service.getWorkouts({ day: 'MONDAY', owner: 'u1', sort: 'name', order: 'asc' }).subscribe();
+    const req = httpMock.expectOne(`${url}?day=MONDAY&owner=u1&sort=name&order=asc`);
     expect(req.request.method).toBe('GET');
+    expect(req.request.params.has('dayOfWeek')).toBe(false);
     req.flush({ workouts: [], pagination: {} });
   });
 
