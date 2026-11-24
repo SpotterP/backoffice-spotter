@@ -60,9 +60,10 @@ describe('authInterceptor', () => {
     let response: unknown;
     http.get(exercisesUrl).subscribe((res) => (response = res));
 
-    httpMock
-      .expectOne(exercisesUrl)
-      .flush({ message: 'El token ha caducado' }, { status: 401, statusText: 'Unauthorized' });
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'TOKEN_EXPIRED', message: 'El token ha caducado' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
 
     const refresh = httpMock.expectOne(refreshUrl);
     expect(refresh.request.body).toEqual({ refreshToken: 'refresh-1' });
@@ -76,16 +77,95 @@ describe('authInterceptor', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('logs out when the token cannot be renewed', () => {
-    let failed = false;
-    http.get(exercisesUrl).subscribe({ error: () => (failed = true) });
+  it('renews by code even when the message text is different', () => {
+    let response: unknown;
+    http.get(exercisesUrl).subscribe({ next: (res) => (response = res), error: () => undefined });
+
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'TOKEN_EXPIRED', message: 'La sesión ha expirado, pero el código es el que manda' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    const refresh = httpMock.expectOne(refreshUrl);
+    expect(refresh.request.body).toEqual({ refreshToken: 'refresh-1' });
+    refresh.flush({ token: 'access-2' });
+
+    const retry = httpMock.expectOne(exercisesUrl);
+    expect(retry.request.headers.get('Authorization')).toBe('Bearer access-2');
+    retry.flush({ exercises: [] });
+
+    expect(response).toEqual({ exercises: [] });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('renews when the body carries only the code and no message', () => {
+    let response: unknown;
+    http.get(exercisesUrl).subscribe({ next: (res) => (response = res), error: () => undefined });
+
+    httpMock
+      .expectOne(exercisesUrl)
+      .flush({ code: 'TOKEN_EXPIRED' }, { status: 401, statusText: 'Unauthorized' });
+
+    const refresh = httpMock.expectOne(refreshUrl);
+    refresh.flush({ token: 'access-2' });
+
+    httpMock.expectOne(exercisesUrl).flush({ exercises: [] });
+
+    expect(response).toEqual({ exercises: [] });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('still renews when the body has no code but keeps the old message', () => {
+    let response: unknown;
+    http.get(exercisesUrl).subscribe({ next: (res) => (response = res), error: () => undefined });
 
     httpMock
       .expectOne(exercisesUrl)
       .flush({ message: 'El token ha caducado' }, { status: 401, statusText: 'Unauthorized' });
+
+    const refresh = httpMock.expectOne(refreshUrl);
+    refresh.flush({ token: 'access-2' });
+
+    const retry = httpMock.expectOne(exercisesUrl);
+    expect(retry.request.headers.get('Authorization')).toBe('Bearer access-2');
+    retry.flush({ exercises: [] });
+
+    expect(response).toEqual({ exercises: [] });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('logs out when the session was revoked, without trying to renew', () => {
+    let status = 0;
+    http.get(exercisesUrl).subscribe({ error: (err) => (status = err.status) });
+
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'SESSION_REVOKED', message: 'La sesión ya no es válida' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    // El logout avisa también a la API; la sesión local se cierra igual
     httpMock
-      .expectOne(refreshUrl)
-      .flush({ message: 'El token ha caducado' }, { status: 401, statusText: 'Unauthorized' });
+      .expectOne(`${environment.apiUrl}/auth/logout`)
+      .flush(null, { status: 204, statusText: 'No Content' });
+
+    httpMock.expectNone(refreshUrl);
+    expect(status).toBe(401);
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('logs out when the token cannot be renewed', () => {
+    let failed = false;
+    http.get(exercisesUrl).subscribe({ error: () => (failed = true) });
+
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'TOKEN_EXPIRED', message: 'El token ha caducado' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    httpMock.expectOne(refreshUrl).flush(
+      { code: 'TOKEN_EXPIRED', message: 'El token ha caducado' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
 
     // El logout avisa también a la API; la sesión local se cierra igual
     httpMock
@@ -100,9 +180,10 @@ describe('authInterceptor', () => {
   it('logs out on any other 401 without trying to renew', () => {
     http.get(exercisesUrl).subscribe({ error: () => undefined });
 
-    httpMock
-      .expectOne(exercisesUrl)
-      .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'TOKEN_INVALID', message: 'Token no válido' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
 
     // El logout avisa también a la API; la sesión local se cierra igual
     httpMock
@@ -115,14 +196,16 @@ describe('authInterceptor', () => {
 
   it('a 401 from the logout call does not start another logout nor renew the token', () => {
     http.get(exercisesUrl).subscribe({ error: () => undefined });
-    httpMock
-      .expectOne(exercisesUrl)
-      .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
+    httpMock.expectOne(exercisesUrl).flush(
+      { code: 'TOKEN_INVALID', message: 'Token no válido' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
 
     // El logout pasa por la rama /auth del interceptor, así que su propio 401 no vuelve a entrar
-    httpMock
-      .expectOne(`${environment.apiUrl}/auth/logout`)
-      .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
+    httpMock.expectOne(`${environment.apiUrl}/auth/logout`).flush(
+      { code: 'TOKEN_INVALID', message: 'Token no válido' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
 
     httpMock.expectNone(`${environment.apiUrl}/auth/logout`);
     httpMock.expectNone(refreshUrl);
