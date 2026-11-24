@@ -87,14 +87,30 @@ export class AuthService {
     );
   }
 
-  /** Cierra la sesión: borra lo guardado y lleva al login */
+  /** Cierra la sesión: avisa a la API, borra lo guardado y lleva al login */
   logout(): void {
-    // Los tokens no se guardan en el servidor, así que cerrar sesión es olvidarlos aquí
+    const token = this.getToken();
+
+    // El interceptor no pone la cabecera en las rutas de /auth, así que va puesta aquí. La API
+    // sube la versión de tokens del usuario, con lo que el access token y el refresh token
+    // dejan de valer, también en los demás dispositivos donde tuviera la sesión abierta.
+    // No espero la respuesta: si falla o no contesta, la sesión local se cierra igual.
+    if (token) {
+      this.http
+        .post<void>(`${this.baseUrl}/logout`, {}, { headers: { Authorization: `Bearer ${token}` } })
+        .subscribe({ error: () => undefined });
+    }
+
+    this.clearSession();
+    this.router.navigate(['/login']);
+  }
+
+  /** Borra los tokens y el usuario guardados: la sesión local deja de existir */
+  private clearSession(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     this.currentUser.set(null);
-    this.router.navigate(['/login']);
   }
 
   /** El access token guardado, o null si no hay sesión. Lo usa el interceptor */
