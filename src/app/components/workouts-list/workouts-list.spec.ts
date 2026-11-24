@@ -41,9 +41,6 @@ const exercise = (id: string, name: string) => ({
   _id: id,
   name,
   category: 'LEGS' as const,
-  // sets y reps siguen en el modelo de ejercicio hasta que su card los quite
-  sets: 4,
-  reps: 10,
 });
 
 const workout = (over: Partial<Workout> = {}): Workout => ({
