@@ -37,13 +37,15 @@ export interface WorkoutExercise {
   reps: number;
 }
 
-// Al crear o editar, los ejercicios se envían como lista de ids con sus series y repeticiones.
-// El formulario todavía manda dayOfWeek y una lista de ids: su card lo migra aparte.
+// Al crear o editar se envía el contrato nuevo: varios días y los ejercicios con sus series y
+// repeticiones. Sin owner, el backend usa el usuario del token
+// (Joi rechaza con 422 cualquier clave que no esté aquí, dayOfWeek incluido)
 export interface WorkoutInput {
   name: string;
-  dayOfWeek: DayOfWeek;
   description?: string;
-  exercises?: string[];
+  owner?: string;
+  days: DayOfWeek[];
+  exercises: { exercise: string; sets: number; reps: number }[];
 }
 
 // La rutina tal como la devuelve la API: varios días, dueño y los ejercicios con sus

@@ -19,30 +19,97 @@
     </label>
 
     <label>
-      Día de la semana *
-      <select formControlName="dayOfWeek">
-        @for (day of days; track day) {
-          <option [value]="day">{{ dayLabels[day] }}</option>
-        }
-      </select>
-    </label>
-
-    <label>
       Descripción
       <textarea formControlName="description" rows="3"></textarea>
     </label>
 
-    <label>
-      Ejercicios
-      <select multiple formControlName="exercises">
-        @for (exercise of exercises(); track exercise._id) {
-          <option [value]="exercise._id">
-            {{ exercise.name }} ({{ categoryLabels[exercise.category] }})
-          </option>
+    <label class="owner">
+      Dueño
+      <select formControlName="owner">
+        <option value="">Sin dueño</option>
+        @for (user of owners(); track user._id) {
+          <option [value]="user._id">{{ user.name }}</option>
         }
       </select>
-      <small class="hint">Ctrl + clic para elegir varios</small>
+      <small class="hint">Si no eliges dueño, la rutina queda para el usuario del token</small>
     </label>
+
+    <fieldset class="days">
+      <legend>Días de la semana</legend>
+      <div class="day-options" formGroupName="days">
+        @for (day of days; track day) {
+          <label>
+            <input type="checkbox" [formControlName]="day" [attr.data-day]="day" />
+            {{ dayLabels[day] }}
+          </label>
+        }
+      </div>
+    </fieldset>
+
+    <div class="exercises">
+      <span class="section-title">Ejercicios</span>
+      <div formArrayName="exercises">
+        @for (row of exerciseRows.controls; track row; let i = $index) {
+          <div class="exercise-row" [formGroupName]="i">
+            <label>
+              Ejercicio
+              <select formControlName="exercise">
+                <option value="">Elige un ejercicio</option>
+                @for (exercise of exercises(); track exercise._id) {
+                  <option [value]="exercise._id">
+                    {{ exercise.name }} ({{ categoryLabels[exercise.category] }})
+                  </option>
+                }
+              </select>
+              @if (row.controls.exercise.touched && row.controls.exercise.invalid) {
+                <small class="field-error">Elige un ejercicio</small>
+              }
+            </label>
+
+            <label>
+              Series
+              <input type="number" min="1" step="1" formControlName="sets" />
+              @if (row.controls.sets.touched && row.controls.sets.invalid) {
+                <small class="field-error">Series: número entero mayor que 0</small>
+              }
+            </label>
+
+            <label>
+              Repeticiones
+              <input type="number" min="1" step="1" formControlName="reps" />
+              @if (row.controls.reps.touched && row.controls.reps.invalid) {
+                <small class="field-error">Repeticiones: número entero mayor que 0</small>
+              }
+            </label>
+
+            <div class="row-actions">
+              <button
+                type="button"
+                class="move-up secondary"
+                [disabled]="i === 0"
+                (click)="moveExercise(i, -1)"
+              >
+                Subir
+              </button>
+              <button
+                type="button"
+                class="move-down secondary"
+                [disabled]="i === exerciseRows.length - 1"
+                (click)="moveExercise(i, 1)"
+              >
+                Bajar
+              </button>
+              <button type="button" class="remove danger" (click)="removeExercise(i)">
+                Quitar
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+      <button type="button" class="add-exercise secondary" (click)="addExercise()">
+        Añadir ejercicio
+      </button>
+    </div>
 
     <div class="form-actions">
       <button type="submit" [disabled]="form.invalid || saving()">
