@@ -87,6 +87,11 @@ describe('authInterceptor', () => {
       .expectOne(refreshUrl)
       .flush({ message: 'El token ha caducado' }, { status: 401, statusText: 'Unauthorized' });
 
+    // El logout avisa también a la API; la sesión local se cierra igual
+    httpMock
+      .expectOne(`${environment.apiUrl}/auth/logout`)
+      .flush(null, { status: 204, statusText: 'No Content' });
+
     expect(failed).toBe(true);
     expect(localStorage.getItem('token')).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
@@ -99,8 +104,29 @@ describe('authInterceptor', () => {
       .expectOne(exercisesUrl)
       .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
 
+    // El logout avisa también a la API; la sesión local se cierra igual
+    httpMock
+      .expectOne(`${environment.apiUrl}/auth/logout`)
+      .flush(null, { status: 204, statusText: 'No Content' });
+
     httpMock.expectNone(refreshUrl);
     expect(navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('a 401 from the logout call does not start another logout nor renew the token', () => {
+    http.get(exercisesUrl).subscribe({ error: () => undefined });
+    httpMock
+      .expectOne(exercisesUrl)
+      .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
+
+    // El logout pasa por la rama /auth del interceptor, así que su propio 401 no vuelve a entrar
+    httpMock
+      .expectOne(`${environment.apiUrl}/auth/logout`)
+      .flush({ message: 'Token no válido' }, { status: 401, statusText: 'Unauthorized' });
+
+    httpMock.expectNone(`${environment.apiUrl}/auth/logout`);
+    httpMock.expectNone(refreshUrl);
+    expect(navigate).toHaveBeenCalledTimes(1);
   });
 
   it('lets other errors through without touching the session', () => {
