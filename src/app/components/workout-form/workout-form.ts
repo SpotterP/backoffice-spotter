@@ -122,10 +122,11 @@ export class WorkoutForm implements OnInit {
   private fillForm(workout: Workout): void {
     this.form.patchValue({
       name: workout.name,
-      dayOfWeek: workout.dayOfWeek,
+      // El formulario todavía elige un solo día: su card lo pasa a días múltiples
+      dayOfWeek: workout.days[0] ?? 'MONDAY',
       description: workout.description ?? '',
-      // La API manda los ejercicios enteros (populate), pero el select trabaja con sus ids
-      exercises: workout.exercises.map((exercise) => exercise._id),
+      // La API manda cada ejercicio con sus series y repeticiones, y el select trabaja con ids
+      exercises: workout.exercises.map((item) => item.exercise._id),
     });
   }
 }

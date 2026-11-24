@@ -23,7 +23,22 @@ export const DAY_LABELS: Record<DayOfWeek, string> = {
   SUNDAY: 'Domingo',
 };
 
-// Al crear o editar, los ejercicios se envían como lista de ids
+// La API solo rellena el id y el nombre del dueño
+export interface WorkoutOwner {
+  _id: string;
+  name: string;
+}
+
+// Cada ejercicio de una rutina lleva sus series y repeticiones; el orden del array es el
+// orden de la rutina
+export interface WorkoutExercise {
+  exercise: Exercise;
+  sets: number;
+  reps: number;
+}
+
+// Al crear o editar, los ejercicios se envían como lista de ids con sus series y repeticiones.
+// El formulario todavía manda dayOfWeek y una lista de ids: su card lo migra aparte.
 export interface WorkoutInput {
   name: string;
   dayOfWeek: DayOfWeek;
@@ -31,14 +46,15 @@ export interface WorkoutInput {
   exercises?: string[];
 }
 
-// Al leer, la API devuelve los ejercicios enteros (populate). Solo la respuesta de
-// crear devuelve ids sueltos, y el frontend no la usa para pintar nada
+// La rutina tal como la devuelve la API: varios días, dueño y los ejercicios con sus
+// series y repeticiones
 export interface Workout {
   _id: string;
   name: string;
-  dayOfWeek: DayOfWeek;
   description?: string;
-  exercises: Exercise[];
+  days: DayOfWeek[];
+  owner: WorkoutOwner | null;
+  exercises: WorkoutExercise[];
   isDeleted?: boolean;
   deletedAt?: string | null;
   createdAt?: string;
@@ -50,6 +66,8 @@ export interface WorkoutsPage {
   pagination: PageInfo;
 }
 
+// La API filtra por day y por owner; el vacío se omite en buildListParams
 export interface WorkoutListParams extends ListParams {
-  dayOfWeek?: DayOfWeek | '';
+  day?: DayOfWeek | '';
+  owner?: string;
 }
