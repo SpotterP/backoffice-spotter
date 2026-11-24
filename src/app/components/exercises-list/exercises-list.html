@@ -45,8 +45,6 @@
         </th>
         <th><button type="button" class="link" (click)="sortBy('name')">Nombre {{ arrow('name') }}</button></th>
         <th><button type="button" class="link" (click)="sortBy('category')">Categoría {{ arrow('category') }}</button></th>
-        <th><button type="button" class="link" (click)="sortBy('sets')">Series {{ arrow('sets') }}</button></th>
-        <th><button type="button" class="link" (click)="sortBy('reps')">Repeticiones {{ arrow('reps') }}</button></th>
         <th></th>
       </tr>
     </thead>
@@ -68,8 +66,6 @@
             }
           </td>
           <td><span class="tag">{{ categoryLabels[exercise.category] }}</span></td>
-          <td>{{ exercise.sets }}</td>
-          <td>{{ exercise.reps }}</td>
           <td class="actions">
             @if (!exercise.isDeleted) {
               <button type="button" class="secondary" [routerLink]="['/exercises', exercise._id, 'edit']">
@@ -84,7 +80,7 @@
         </tr>
       } @empty {
         <tr>
-          <td class="empty" colspan="6">
+          <td class="empty" colspan="4">
             @if (search() || category()) {
               No hay ejercicios con esos filtros
             } @else {
