@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
     branches: [dev, main]
 
@@ -70,8 +70,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          # Every commit on dev replaces the branch tag; version tags come with main.
-          tags: ${{ steps.image.outputs.name }}:dev
+          # Every merge to main replaces latest, the tag the deployed compose pulls.
+          tags: ${{ steps.image.outputs.name }}:latest
           # La URL de la API se hornea en el bundle: va como build-arg, no como
           # variable de entorno del contenedor. Definirla en Settings > Secrets and
           # variables > Actions > Variables (no como secret: termina en el JS publico).
