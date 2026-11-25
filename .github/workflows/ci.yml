@@ -26,7 +26,9 @@ jobs:
 
   verify:
     name: Lint and build
-    if: github.event_name == 'push'
+    # Also on pull requests, so a lint or build error shows up before the merge
+    # instead of on main after it. Making it block the merge needs this job as a
+    # required status check in the branch protection settings.
     needs: test
     runs-on: ubuntu-latest
     steps:
