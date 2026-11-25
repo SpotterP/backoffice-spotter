@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.angular
+.git
+.githooks
+.github
+.agents
+.claude
+.vscode
+kanvas.json
+*.md
+Dockerfile
+.dockerignore
+.env
+.env.*
+.env.example
