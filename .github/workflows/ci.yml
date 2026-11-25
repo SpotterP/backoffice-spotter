@@ -72,3 +72,8 @@ jobs:
           push: true
           # Every commit on dev replaces the branch tag; version tags come with main.
           tags: ${{ steps.image.outputs.name }}:dev
+          # La URL de la API se hornea en el bundle: va como build-arg, no como
+          # variable de entorno del contenedor. Definirla en Settings > Secrets and
+          # variables > Actions > Variables (no como secret: termina en el JS publico).
+          build-args: |
+            API_URL=${{ vars.API_URL }}
