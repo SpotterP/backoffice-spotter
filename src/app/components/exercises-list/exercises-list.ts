@@ -20,6 +20,9 @@ import { Pagination } from '../pagination/pagination';
 
 const PAGE_SIZE = 10;
 
+// El backend solo ordena el catálogo por nombre o categoría
+type SortableColumn = 'name' | 'category';
+
 @Component({
   selector: 'app-exercises-list',
   imports: [FormsModule, RouterLink, Pagination, DeleteModal],
@@ -41,7 +44,7 @@ export class ExercisesList implements OnInit {
   // Buscador, filtro y orden. Cualquier cambio vuelve a pedir la página 1
   search = signal('');
   category = signal<ExerciseCategory | ''>('');
-  sort = signal('name');
+  sort = signal<SortableColumn>('name');
   order = signal<SortOrder>('asc');
   page = signal(1);
 
@@ -223,7 +226,7 @@ export class ExercisesList implements OnInit {
   }
 
   /** Pulsar una cabecera ordena por esa columna; pulsarla otra vez invierte el sentido */
-  sortBy(column: string): void {
+  sortBy(column: SortableColumn): void {
     if (this.sort() === column) {
       this.order.set(this.order() === 'asc' ? 'desc' : 'asc');
     } else {
@@ -234,7 +237,7 @@ export class ExercisesList implements OnInit {
   }
 
   /** Flecha que se pinta junto a la cabecera de la columna activa */
-  arrow(column: string): string {
+  arrow(column: SortableColumn): string {
     if (this.sort() !== column) {
       return '';
     }

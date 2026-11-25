@@ -1,0 +1,9 @@
+services:
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/spotterp/backoffice-spotter:dev}
+    container_name: backoffice-web
+    restart: unless-stopped
+    ports:
+      # El puerto 80 del host lo ocupa el reverse proxy (Nginx Proxy Manager).
+      # Para entrar desde la LAN: http://<IP>:8080
+      - "${WEB_PORT:-8080}:80"

@@ -10,8 +10,10 @@ export { EXERCISE_CATEGORIES, EXERCISE_CATEGORY_LABELS } from './exercise.model'
 export type {
   DayOfWeek,
   Workout,
+  WorkoutExercise,
   WorkoutInput,
   WorkoutListParams,
+  WorkoutOwner,
   WorkoutsPage,
 } from './workout.model';
 export { DAYS_OF_WEEK, DAY_LABELS } from './workout.model';

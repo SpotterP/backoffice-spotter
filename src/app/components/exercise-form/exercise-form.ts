@@ -46,8 +46,6 @@ export class ExerciseForm implements OnInit {
   form = this.fb.group({
     name: ['', [Validators.required, Validators.pattern(/\S/)]],
     category: ['CHEST' as ExerciseCategory, Validators.required],
-    sets: [0, [Validators.required, Validators.min(0), Validators.pattern(/^\d+$/)]],
-    reps: [0, [Validators.required, Validators.min(0), Validators.pattern(/^\d+$/)]],
   });
 
   ngOnInit(): void {
@@ -109,8 +107,6 @@ export class ExerciseForm implements OnInit {
     this.form.patchValue({
       name: exercise.name,
       category: exercise.category,
-      sets: exercise.sets,
-      reps: exercise.reps,
     });
   }
 }

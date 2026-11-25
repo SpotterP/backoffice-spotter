@@ -61,7 +61,7 @@ describe('ExercisesList', () => {
   });
 
   it('soft delete and hard delete send different requests, then reload the list', () => {
-    const exercise = { _id: 'e1', name: 'Plancha', category: 'CORE' as const, sets: 3, reps: 30 };
+    const exercise = { _id: 'e1', name: 'Plancha', category: 'CORE' as const };
 
     component.askDelete(exercise);
     component.softDelete();
@@ -82,8 +82,8 @@ describe('ExercisesList', () => {
 
   it('deletes the selected rows in one request, soft and hard', () => {
     const rows = [
-      { _id: 'e1', name: 'Plancha', category: 'CORE' as const, sets: 3, reps: 30 },
-      { _id: 'e2', name: 'Press', category: 'CHEST' as const, sets: 3, reps: 8 },
+      { _id: 'e1', name: 'Plancha', category: 'CORE' as const },
+      { _id: 'e2', name: 'Press', category: 'CHEST' as const },
     ];
     component.exercises.set(rows);
 
@@ -112,10 +112,57 @@ describe('ExercisesList', () => {
   });
 
   it('sorting by the same column twice flips the order', () => {
-    component.sortBy('reps');
-    httpMock.expectOne(`${base}?page=1&limit=10&sort=reps&order=asc`).flush(emptyPage(1, 0, 0));
-    component.sortBy('reps');
-    httpMock.expectOne(`${base}?page=1&limit=10&sort=reps&order=desc`).flush(emptyPage(1, 0, 0));
+    component.sortBy('category');
+    httpMock.expectOne(`${base}?page=1&limit=10&sort=category&order=asc`).flush(emptyPage(1, 0, 0));
+    component.sortBy('category');
+    httpMock.expectOne(`${base}?page=1&limit=10&sort=category&order=desc`).flush(emptyPage(1, 0, 0));
     expect(component.order()).toBe('desc');
+  });
+
+  // El catálogo solo se ordena por nombre o categoría: el backend rechaza otros campos
+  it('offers only name and category as sortable columns', () => {
+    const headers = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('thead th'),
+    ).map((th) => th.textContent ?? '');
+
+    expect(headers.some((header) => header.includes('Series'))).toBe(false);
+    expect(headers.some((header) => header.includes('Repeticiones'))).toBe(false);
+    expect(
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('thead th button')).map(
+        (button) => (button.textContent ?? '').replace('▲', '').replace('▼', '').trim(),
+      ),
+    ).toEqual(['Nombre', 'Categoría']);
+  });
+
+  it('sorts only by name or category when a header is clicked', () => {
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('thead th button'),
+    );
+    const sorts: string[] = [];
+
+    for (const button of buttons) {
+      button.click();
+      const request = httpMock.expectOne((req) => req.url === base && req.params.has('sort'));
+      sorts.push(request.request.params.get('sort') ?? '');
+      request.flush(emptyPage(1, 0, 0));
+    }
+
+    expect(sorts).toEqual(['name', 'category']);
+  });
+
+  it('renders only the catalogue columns in each row', () => {
+    component.exercises.set([{ _id: 'e9', name: 'Plancha', category: 'CORE' }]);
+    fixture.detectChanges();
+
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr');
+    expect(row?.querySelectorAll('td').length).toBe(4);
+    expect(row?.textContent).toContain('Plancha');
+    expect(row?.textContent).toContain('Core');
+  });
+
+  it('spans the empty state across the four columns', () => {
+    const empty = (fixture.nativeElement as HTMLElement).querySelector('td.empty');
+    expect(empty?.getAttribute('colspan')).toBe('4');
+    expect(empty?.textContent?.trim()).toBe('No hay ejercicios');
   });
 });

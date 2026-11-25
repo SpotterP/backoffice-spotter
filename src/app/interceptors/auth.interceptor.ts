@@ -5,8 +5,25 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
 
-// Mensaje con el que la API responde 401 cuando el access token ha caducado (ver el contrato en LOGS.md)
-const TOKEN_EXPIRED = 'El token ha caducado';
+// Código estable con el que la API marca el 401 cuando el access token ha caducado.
+// Es el criterio del refresco: no depende de la redacción del mensaje.
+const TOKEN_EXPIRED = 'TOKEN_EXPIRED';
+
+// RESPALDO TEMPORAL: mensaje con el que respondía la API antes de tener `code`.
+// Se puede borrar (esta constante y la rama de isTokenExpired que la usa) cuando el
+// backend que envía `code` esté en producción y no queden clientes contra el antiguo.
+const TOKEN_EXPIRED_MESSAGE = 'El token ha caducado';
+
+// ¿El 401 dice que el access token ha caducado? Manda el `code`; el texto solo cuenta
+// mientras el cuerpo no traiga `code` alguno (despliegue escalonado del backend).
+// Un `code` distinto (TOKEN_MISSING, TOKEN_INVALID, SESSION_REVOKED...) nunca renueva.
+function isTokenExpired(body: unknown): boolean {
+  const payload = body as { code?: unknown; message?: unknown } | null;
+  if (typeof payload?.code === 'string') {
+    return payload.code === TOKEN_EXPIRED;
+  }
+  return payload?.message === TOKEN_EXPIRED_MESSAGE;
+}
 
 // Las peticiones son inmutables: para añadir una cabecera se hace una copia con clone()
 function withToken(request: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
@@ -36,7 +53,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
       }
 
       // 401 porque el token ha caducado: lo renuevo y repito la petición original una vez
-      if (error.error?.message === TOKEN_EXPIRED) {
+      if (isTokenExpired(error.error)) {
         return auth.refresh().pipe(
           // Si el refresh falla (el refresh token también ha caducado), cierro la sesión
           catchError((refreshError) => {

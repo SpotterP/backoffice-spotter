@@ -5,15 +5,18 @@ import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, Observable, Subject, catchError, finalize, switchMap, tap } from 'rxjs';
 
-import { DAYS_OF_WEEK, DAY_LABELS, DayOfWeek, SortOrder, Workout } from '../../models';
+import { DAYS_OF_WEEK, DAY_LABELS, DayOfWeek, SortOrder, UserSummary, Workout } from '../../models';
 import { BulkDeleteResponse } from '../../models/page.model';
 import { TruncatePipe } from '../../pipes/truncate-pipe';
+import { UserService } from '../../services/user.service';
 import { WorkoutService } from '../../services/workout.service';
 import { apiErrorMessage } from '../../utils/api-error';
 import { DeleteModal } from '../delete-modal/delete-modal';
 import { Pagination } from '../pagination/pagination';
 
 const PAGE_SIZE = 10;
+// El desplegable del dueño pide los usuarios de una vez (la API admite hasta 100)
+const OWNERS_PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-workouts-list',
@@ -22,6 +25,7 @@ const PAGE_SIZE = 10;
 })
 export class WorkoutsList implements OnInit {
   private workoutService = inject(WorkoutService);
+  private userService = inject(UserService);
   private pageRequests = new Subject<number>();
 
   readonly days = DAYS_OF_WEEK;
@@ -35,7 +39,10 @@ export class WorkoutsList implements OnInit {
 
   // El buscador de rutinas mira el nombre y la descripción
   search = signal('');
-  dayOfWeek = signal<DayOfWeek | ''>('');
+  day = signal<DayOfWeek | ''>('');
+  owner = signal('');
+  // Usuarios del desplegable del dueño
+  owners = signal<UserSummary[]>([]);
   sort = signal('name');
   order = signal<SortOrder>('asc');
   page = signal(1);
@@ -51,7 +58,8 @@ export class WorkoutsList implements OnInit {
               page,
               limit: PAGE_SIZE,
               search: this.search(),
-              dayOfWeek: this.dayOfWeek(),
+              day: this.day(),
+              owner: this.owner(),
               sort: this.sort(),
               order: this.order(),
             })
@@ -210,6 +218,23 @@ export class WorkoutsList implements OnInit {
 
   ngOnInit(): void {
     this.loadPage(1);
+    this.loadOwners();
+  }
+
+  /** Los usuarios se piden una sola vez: el desplegable del dueño no depende de la lista */
+  private loadOwners(): void {
+    this.userService
+      .getUsers({ page: 1, limit: OWNERS_PAGE_SIZE, sort: 'name', order: 'asc' })
+      .subscribe({
+        next: (response) => this.owners.set(response.users),
+        // Si falla, el desplegable queda vacío y la lista de rutinas sigue funcionando
+        error: () => this.owners.set([]),
+      });
+  }
+
+  /** Los días de la rutina en una línea: "Lunes, Jueves" */
+  daysText(workout: Workout): string {
+    return workout.days.map((day) => this.dayLabels[day]).join(', ');
   }
 
   loadPage(page: number): void {

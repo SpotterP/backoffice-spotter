@@ -12,10 +12,16 @@
     [(ngModel)]="search"
     (ngModelChange)="loadPage(1)"
   />
-  <select aria-label="Filtrar por día" [(ngModel)]="dayOfWeek" (ngModelChange)="loadPage(1)">
+  <select aria-label="Filtrar por día" [(ngModel)]="day" (ngModelChange)="loadPage(1)">
     <option value="">Todos los días</option>
-    @for (day of days; track day) {
-      <option [value]="day">{{ dayLabels[day] }}</option>
+    @for (weekDay of days; track weekDay) {
+      <option [value]="weekDay">{{ dayLabels[weekDay] }}</option>
+    }
+  </select>
+  <select aria-label="Filtrar por dueño" [(ngModel)]="owner" (ngModelChange)="loadPage(1)">
+    <option value="">Todos los dueños</option>
+    @for (user of owners(); track user._id) {
+      <option [value]="user._id">{{ user.name }}</option>
     }
   </select>
   @if (selectedCount() > 0) {
@@ -45,7 +51,8 @@
         </th>
         <th><button type="button" class="link" (click)="sortBy('name')">Nombre {{ arrow('name') }}</button></th>
         <th><button type="button" class="link" (click)="sortBy('description')">Descripción {{ arrow('description') }}</button></th>
-        <th><button type="button" class="link" (click)="sortBy('dayOfWeek')">Día {{ arrow('dayOfWeek') }}</button></th>
+        <th>Día</th>
+        <th>Dueño</th>
         <th>Ejercicios</th>
         <th></th>
       </tr>
@@ -74,10 +81,23 @@
               <span class="muted">—</span>
             }
           </td>
-          <td>{{ dayLabels[workout.dayOfWeek] }}</td>
           <td>
-            @for (exercise of workout.exercises; track exercise._id) {
-              <span class="tag">{{ exercise.name }}</span>
+            @if (workout.days.length > 0) {
+              {{ daysText(workout) }}
+            } @else {
+              <span class="muted">Sin días</span>
+            }
+          </td>
+          <td>
+            @if (workout.owner) {
+              {{ workout.owner.name }}
+            } @else {
+              <span class="muted">Sin dueño</span>
+            }
+          </td>
+          <td>
+            @for (item of workout.exercises; track item.exercise._id) {
+              <span class="tag">{{ item.exercise.name }}</span>
             } @empty {
               <span class="muted">Sin ejercicios</span>
             }
@@ -96,8 +116,8 @@
         </tr>
       } @empty {
         <tr>
-          <td class="empty" colspan="6">
-            @if (search() || dayOfWeek()) {
+          <td class="empty" colspan="7">
+            @if (search() || day() || owner()) {
               No hay rutinas con esos filtros
             } @else {
               No hay rutinas

@@ -20,20 +20,25 @@ describe('WorkoutService', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('getWorkouts() sends the day filter and the sort', () => {
-    service.getWorkouts({ dayOfWeek: 'MONDAY', sort: 'dayOfWeek', order: 'asc' }).subscribe();
-    const req = httpMock.expectOne(`${url}?dayOfWeek=MONDAY&sort=dayOfWeek&order=asc`);
+  it('getWorkouts() sends the day and owner filters and the sort', () => {
+    service.getWorkouts({ day: 'MONDAY', owner: 'u1', sort: 'name', order: 'asc' }).subscribe();
+    const req = httpMock.expectOne(`${url}?day=MONDAY&owner=u1&sort=name&order=asc`);
     expect(req.request.method).toBe('GET');
+    expect(req.request.params.has('dayOfWeek')).toBe(false);
     req.flush({ workouts: [], pagination: {} });
   });
 
   it('createWorkout() posts the exercises as a list of ids', () => {
     service
-      .createWorkout({ name: 'Día de pecho', dayOfWeek: 'MONDAY', exercises: ['e1', 'e2'] })
+      .createWorkout({
+        name: 'Día de pecho',
+        days: ['MONDAY'],
+        exercises: [{ exercise: 'e1', sets: 4, reps: 10 }],
+      })
       .subscribe();
     const req = httpMock.expectOne(url);
     expect(req.request.method).toBe('POST');
-    expect(req.request.body.exercises).toEqual(['e1', 'e2']);
+    expect(req.request.body.exercises).toEqual([{ exercise: 'e1', sets: 4, reps: 10 }]);
     req.flush({ workout: {} });
   });
 
@@ -52,7 +57,9 @@ describe('WorkoutService', () => {
   });
 
   it('updateWorkout() puts the payload to the id url', () => {
-    service.updateWorkout('w1', { name: 'X', dayOfWeek: 'FRIDAY' }).subscribe();
+    service
+      .updateWorkout('w1', { name: 'X', days: ['FRIDAY'], exercises: [] })
+      .subscribe();
     const req = httpMock.expectOne(`${url}/w1`);
     expect(req.request.method).toBe('PUT');
     req.flush({ workout: {} });

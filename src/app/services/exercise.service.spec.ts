@@ -15,8 +15,6 @@ describe('ExerciseService', () => {
     _id: 'e1',
     name: 'Press de banca',
     category: 'CHEST',
-    sets: 4,
-    reps: 10,
   };
 
   beforeEach(() => {
@@ -36,12 +34,12 @@ describe('ExerciseService', () => {
         limit: 10,
         search: ' press ',
         category: '',
-        sort: 'reps',
+        sort: 'name',
         order: 'desc',
       })
       .subscribe();
 
-    const req = httpMock.expectOne(`${url}?page=2&limit=10&search=press&sort=reps&order=desc`);
+    const req = httpMock.expectOne(`${url}?page=2&limit=10&search=press&sort=name&order=desc`);
     expect(req.request.method).toBe('GET');
     req.flush({ exercises: [], pagination: { page: 2, limit: 10, total: 0, totalPages: 0 } });
   });
@@ -98,10 +96,10 @@ describe('ExerciseService', () => {
   });
 
   it('updateExercise() puts the whole exercise to the id url', () => {
-    service.updateExercise('e1', { name: 'Press', category: 'CHEST', sets: 3, reps: 8 }).subscribe();
+    service.updateExercise('e1', { name: 'Press', category: 'CHEST' }).subscribe();
     const req = httpMock.expectOne(`${url}/e1`);
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body.sets).toBe(3);
+    expect(req.request.body).toEqual({ name: 'Press', category: 'CHEST' });
     req.flush({ exercise });
   });
 });
