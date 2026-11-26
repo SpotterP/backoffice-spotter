@@ -1,6 +1,6 @@
 services:
   web:
-    image: ${WEB_IMAGE:-ghcr.io/spotterp/backoffice-spotter:dev}
+    image: ${WEB_IMAGE:-ghcr.io/spotterp/backoffice-spotter:latest}
     container_name: backoffice-web
     restart: unless-stopped
     ports:

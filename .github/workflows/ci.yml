@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [dev, main]
   pull_request:
     branches: [dev, main]
 
@@ -26,7 +26,9 @@ jobs:
 
   verify:
     name: Lint and build
-    if: github.event_name == 'push'
+    # Also on pull requests, so a lint or build error shows up before the merge
+    # instead of on main after it. Making it block the merge needs this job as a
+    # required status check in the branch protection settings.
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -52,9 +54,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Image name
+      - name: Image name and tag
         id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          # main publishes latest, the tag the deployed compose pulls. dev publishes
+          # dev, the tag a test container uses through WEB_IMAGE. Those are the only
+          # branches under on.push, so the else is dev.
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/setup-buildx-action@v3
 
@@ -70,8 +81,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          # Every commit on dev replaces the branch tag; version tags come with main.
-          tags: ${{ steps.image.outputs.name }}:dev
+          # One job, one place deciding the tag, so CI and the deployed compose
+          # cannot disagree about which image is which.
+          tags: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
           # La URL de la API se hornea en el bundle: va como build-arg, no como
           # variable de entorno del contenedor. Definirla en Settings > Secrets and
           # variables > Actions > Variables (no como secret: termina en el JS publico).
